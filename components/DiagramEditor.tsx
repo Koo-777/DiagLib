@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Diagram } from '@/types';
+import { jsPDF } from 'jspdf';
 import { toPng, toSvg } from 'html-to-image';
 import { Download, Copy, Share2, RefreshCw, Palette } from 'lucide-react';
 
@@ -47,30 +48,65 @@ export function DiagramEditor({ diagram, initialSvgContent }: DiagramEditorProps
         setColorMap(prev => ({ ...prev, [original]: newColor }));
     };
 
-    const handleDownload = async (format: 'png' | 'svg') => {
+    const handleDownload = async (format: 'png' | 'svg' | 'pdf') => {
         if (!previewRef.current) return;
 
-        // The node we want to capture is the inner SVG container
-        // But html-to-image works on DOM nodes.
-        // Ensure the node has dimensions.
-        const node = previewRef.current.firstElementChild as HTMLElement;
-        if (!node) return;
+        // Use the container div instead of the SVG element directly for better stability across browsers
+        const node = previewRef.current;
 
         try {
-            let dataUrl = '';
-            if (format === 'png') {
-                dataUrl = await toPng(node, { pixelRatio: 2 }); // 2x for better quality
-            } else {
-                dataUrl = await toSvg(node);
-            }
+            console.log(`Starting ${format} download...`);
+            const filename = `${diagram.title.replace(/\s+/g, '_')}_${format}.${format}`;
 
-            const link = document.createElement('a');
-            link.download = `${diagram.title.replace(/\s+/g, '_')}_${format}.${format}`;
-            link.href = dataUrl;
-            link.click();
+            if (format === 'png') {
+                const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = dataUrl;
+                link.click();
+            } else if (format === 'svg') {
+                // For SVG, we want the inner SVG string, effectively doing what we display
+                // toSvg from html-to-image wraps it in a foreignObject which might not be desired for pure SVG export
+                // Let's use the current svgContent state which has the colors applied!
+                // This is cleaner for SVG export.
+                const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+            } else if (format === 'pdf') {
+                // Ensure dimensions are valid. If hidden or 0, it fails.
+                const width = node.offsetWidth;
+                const height = node.offsetHeight;
+
+                if (width === 0 || height === 0) {
+                    throw new Error("Element has 0 dimensions.");
+                }
+
+                console.log('Generating image for PDF...', width, height);
+                const imgData = await toPng(node, {
+                    pixelRatio: 2,
+                    cacheBust: true,
+                    width: width,
+                    height: height
+                });
+
+                console.log('Image generated, creating PDF...');
+                const pdf = new jsPDF({
+                    orientation: width > height ? 'landscape' : 'portrait',
+                    unit: 'px',
+                    format: [width, height]
+                });
+
+                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                pdf.save(filename);
+                console.log('PDF saved.');
+            }
         } catch (err) {
             console.error('Download failed', err);
-            alert('Download failed. Please try again.');
+            alert(`Download failed: ${err instanceof Error ? err.message : String(err)}`);
         }
     };
 
@@ -125,6 +161,12 @@ export function DiagramEditor({ diagram, initialSvgContent }: DiagramEditorProps
                             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium transition-colors"
                         >
                             <Download size={18} /> SVG
+                        </button>
+                        <button
+                            onClick={() => handleDownload('pdf')}
+                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium transition-colors"
+                        >
+                            <Download size={18} /> PDF
                         </button>
                         <button
                             onClick={copyToClipboard}
