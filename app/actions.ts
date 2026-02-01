@@ -10,7 +10,14 @@ const geminiApiKey = process.env.GEMINI_API_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 
+const adminPassword = process.env.ADMIN_PASSWORD || ''; // Set this in .env.local
+
 export async function uploadDiagram(formData: FormData) {
+    const password = formData.get('password') as string;
+    if (password !== adminPassword) {
+        return { error: 'Invalid admin password' };
+    }
+
     const file = formData.get('file') as File;
     if (!file) return { error: 'No file uploaded' };
 

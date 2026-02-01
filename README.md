@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Diag-Lib
 
-## Getting Started
+Next.js (App Router)、Supabase、Gemini AIを使用して構築された図解ギャラリーアプリケーションです。
+メインサイトのサブディレクトリ `/diag-lib` として動作するように設計されています。
 
-First, run the development server:
+## 技術スタック
+- **Framework**: Next.js 14+ (App Router)
+- **Styling**: Tailwind CSS
+- **Database**: Supabase (PostgreSQL)
+- **Storage**: Supabase Storage
+- **AI**: Gemini 1.5 Flash (メタデータ自動生成用)
+- **Icons**: Lucide React
+
+## 機能
+- **ギャラリー**: 検索機能付きの図解グリッド表示（タイトル/説明文検索）。
+- **詳細ビュー**: SVGのプレビューと詳細表示。
+- **クライアントサイド色変更**: ダウンロード前にブラウザ上でSVGの色をカスタマイズ可能。
+- **エクスポート**: PNGまたはSVGとしてダウンロード、またはクリップボードにコピー。
+- **管理画面**: SVGアップロード機能。Gemini APIによりタイトル・タグ・説明文を自動生成。パスワード保護付き。
+
+## セットアップ手順
+
+### 1. 環境変数の設定
+`.env.local` ファイルを作成し、以下の変数を設定してください（このファイルはGitに含めないでください）:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+GEMINI_API_KEY=your_gemini_api_key
+ADMIN_PASSWORD=your_secure_password
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. データベースのセットアップ
+SupabaseのSQL Editorで、プロジェクト内の `supabase_setup.sql` スクリプトを実行してください。
+テーブル、ストレージバケット、RLS（Row Level Security）ポリシー、検索用インデックスが作成されます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. ライブラリのインストール
+```bash
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. ローカルでの実行
+```bash
+npm run dev
+```
+ブラウザで `http://localhost:3000/diag-lib` にアクセスしてください。
 
-## Learn More
+## デプロイ (Vercel)
 
-To learn more about Next.js, take a look at the following resources:
+このプロジェクトは `basePath: '/diag-lib'` で構成されています。
+通常のVercelプロジェクトとしてデプロイ可能です。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+メインサイト (Apexia Lab) のドメイン配下（`domain.com/diag-lib`）で表示させるには:
+1.  このプロジェクトをVercelにデプロイします（例: `diag-lib.vercel.app`）。
+2.  **メインサイト** の `vercel.json` に以下のRewrite設定を追加します:
+    ```json
+    {
+      "rewrites": [
+        {
+          "source": "/diag-lib",
+          "destination": "https://diag-lib.vercel.app/diag-lib"
+        },
+        {
+          "source": "/diag-lib/:path*",
+          "destination": "https://diag-lib.vercel.app/diag-lib/:path*"
+        }
+      ]
+    }
+    ```
